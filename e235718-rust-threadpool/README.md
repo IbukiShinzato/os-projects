@@ -1,0 +1,3 @@
+# e235718-rust-threadpool
+
+threadpoolでthreadの管理を行ってchannelを介してメッセージのやり取りを並行処理で行うサンプルプログラムです。

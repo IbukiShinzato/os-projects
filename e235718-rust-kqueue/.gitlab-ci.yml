@@ -1,0 +1,27 @@
+stages:
+  - build
+
+variables:
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"  # プロジェクトディレクトリ内に設定
+  RUSTUP_HOME: "$CI_PROJECT_DIR/.rustup"
+
+build:
+  stage: build
+  image: rust:latest
+  before_script:
+    - mkdir -p $CARGO_HOME $RUSTUP_HOME  # 必要なディレクトリを作成
+    - rustup set profile minimal         # Rustのプロファイルを最小に設定
+    - rustup default stable              # Rustの安定版を使用
+    - rustup target add x86_64-unknown-linux-gnu  # クロスコンパイルターゲットを追加
+    - cargo add notify                    # notifyクレートをインストール
+  script:
+    - cargo build --release --target x86_64-unknown-linux-gnu --verbose  # Linuxターゲットでビルド
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"          # ブランチごとのキャッシュ
+    paths:
+      - .cargo/registry
+      - .cargo/git
+      - target
+  artifacts:
+    paths:
+      - target/release                    # ビルド成果物を保存

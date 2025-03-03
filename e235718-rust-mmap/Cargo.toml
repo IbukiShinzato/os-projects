@@ -1,0 +1,11 @@
+[package]
+name = "e235718-rust-mmap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cc = "1.2.11"
+libc = "0.2.169"
+
+[build-dependencies]
+cc = "1.2.11"

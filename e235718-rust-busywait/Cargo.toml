@@ -1,0 +1,9 @@
+[package]
+name = "mouce_recorder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.39"
+eframe = "0.30.0"
+mouse_position = "0.1.4"

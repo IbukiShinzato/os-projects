@@ -1,0 +1,9 @@
+# バイナリの実行環境
+source/target/
+
+# Latexの中間ファイルなど
+report/trash/
+
+# 実行時に生成されるファイル
+source/output*
+.DS_Store

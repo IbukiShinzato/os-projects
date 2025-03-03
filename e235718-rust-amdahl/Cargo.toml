@@ -1,0 +1,8 @@
+[package]
+name = "amdahl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+file = "1.1.2"
+threadpool = "1.8.1"

@@ -1,0 +1,6 @@
+Source: source_file.txt
+Hash: 2594cd73650f7df05fa9d573b3cffdb96124a47e82ce3d19d6dd4c80a9c585a4
+
+backup_file1.txt: VALID
+backup_file2.txt: VALID
+backup_file3.txt: VALID

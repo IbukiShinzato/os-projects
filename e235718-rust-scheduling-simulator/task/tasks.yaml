@@ -1,0 +1,11 @@
+- id: 1
+  name: send_mail
+  clock: 1
+
+- id: 2
+  name: complete_homework
+  clock: 1000000000
+
+- id: 3
+  name: practice_sport 
+  clock: 1000000

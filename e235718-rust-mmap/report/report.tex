@@ -1,0 +1,79 @@
+\documentclass[a4paper, 11pt, titlepage]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{detect-all}
+
+\title{mmap によるコピーの実行速度}
+
+\author{235718G　新里　伊武輝 }
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\clearpage
+
+\section{はじめに}
+mmapを使ったコピーが、通常のread/writeと比べてどのくらいの速度差があるかを検証する。なお、コピー元のファイルのサイズは3GBとした。ベンチマーク結果は表\ref{tab:benchmark}に示す。
+
+\section{3GBファイルコピーのベンチマーク結果}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{@{}lccc@{}}
+        \toprule
+        \textbf{方法} & \textbf{real (s)} & \textbf{user (s)} & \textbf{sys (s)} \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{2回連続実行}} \\
+        \addlinespace
+        cp (1回目) & 4.77 & 0.00 & 0.90 \\
+        cp (2回目) & 4.97 & 0.00 & 0.94 \\
+        mmap\_copy (1回目) & 16.05 & 0.38 & 2.18 \\
+        mmap\_copy (2回目) & 27.98 & 0.42 & 3.19 \\
+        mmap\_write (1回目) & 18.57 & 0.03 & 1.50 \\
+        mmap\_write (2回目) & 13.00 & 0.03 & 1.40 \\
+        read\_write (1回目) & 4.69 & 0.02 & 0.91 \\
+        read\_write (2回目) & 4.65 & 0.03 & 0.90 \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{1回ずつ実行}} \\
+        \addlinespace
+        cp (1回目) & 4.57 & 0.00 & 0.92 \\
+        cp (2回目) & 4.34 & 0.00 & 0.89 \\
+        mmap\_copy (1回目) & 12.96 & 0.38 & 2.45 \\
+        mmap\_copy (2回目) & 12.37 & 0.37 & 3.50 \\
+        mmap\_write (1回目) & 12.81 & 0.02 & 1.33 \\
+        mmap\_write (2回目) & 12.80 & 0.02 & 1.34 \\
+        read\_write (1回目) & 4.79 & 0.03 & 0.90 \\
+        read\_write (2回目) & 4.61 & 0.03 & 0.90 \\
+        \bottomrule
+    \end{tabular}
+    \caption{3GBファイルコピーの実行時間 (real, user, sys)}
+    \label{tab:benchmark}
+\end{table}
+
+
+\section{考察}
+
+表\ref{tab:benchmark}から、mmap\_copy と mmap\_write は cp や read/write よりも処理時間が長くかかることがわかる。これらの違いは主にデータの書き出し方法に起因する。cp と read/write はシステムコールである read および write を使用し、バッファを介してディスクI/O を行う。一方、mmap\_copy と mmap\_write はディスク上のファイルを仮想メモリにマッピングし、メモリアクセス時にページフォールトが発生して物理メモリにロードされ、仮想メモリアドレスを介して物理メモリにアクセスする。これにより、mmap を使用する場合、ページフォールトによるオーバーヘッドが発生するため、cp や read/write よりも時間がかかることがある。
+
+また、表\ref{tab:benchmark}から、mmap\_copy はコピー先を削除せずに連続してコピーすると処理性能が低下するが、mmap\_write は逆に性能が向上する。この違いは、mmap\_copy ではファイルキャッシュが更新されず、ページフォールトが増加するためである。一方、mmap\_write は同じマッピング先に対して再利用されるキャッシュの効果で性能が向上すると考えられる。さらに、コピー先を削除して再びコピーすると、mmap\_copy はキャッシュがクリアされることで性能が向上するが、mmap\_write はキャッシュの再利用が少なくなり、性能変化が小さい。
+
+これらの結果から、mmap\_copy はコピー先が異なる場合に効果的であり、mmap\_write は同じコピー先に対して繰り返し操作を行う場合に適していると考えられる。また、madvise を適切に設定することで、ページキャッシュの最適化が可能となり、さらに効率的なファイル操作が実現できる。
+
+\subsection{iostatログを活用した分析}
+
+iostat1.log（2回連続実行）とiostat2.log（一回ずつ実行）から、cp と read/write は1回目と2回目の変化はそれほどなかったのに対して、mmap\_copy と mmap\_write では1回ずつ実行よりも2回連続実行の方が2回目の処理性能が上がっていることがわかる。このことから、mmap\_copy と mmap\_write はキャッシュが効きやすいので、何度も同じデータにアクセスすることに適しており、一方で、cp と read/write はランダムアクセスに適していることがわかる。また、mmap\_copy ではランダムアクセスの場合、ページフォールトをより頻繁に発生させてオーバーヘッドを招く可能性があるので、大規模ファイルのランダムアクセスには mmap\_write、同じ大規模ファイルのアクセスには mmap\_copy が適していると考える。
+
+\subsection{iostatの具体的な数値例}
+
+具体的なiostatログにおいて、cp と read/write の1回目と2回目のI/O待機時間（await）に大きな差が見られなかったのに対して、mmap\_copy と mmap\_write は2回目の実行でI/O待機時間の変化が顕著に現れた。特に、mmap\_write の場合、I/O待機時間の減少が確認でき、キャッシュの再利用が効率的に行われていることが示唆された。一方で、mmap\_copy ではページフォールトが頻繁に発生し、I/O待機時間が増加する傾向が見られた。
+
+これらの結果から、mmap\_write はキャッシュ再利用が効率的であり、同じデータに対する繰り返しアクセスに向いていることが確認できた。また、mmap\_copy はランダムアクセスにおいて、ページフォールトの影響を受けやすいため、アクセスパターンによってはオーバーヘッドが発生する可能性が高いことがわかる。
+
+\subsection{madviseの活用}
+
+madvise を適切に設定することで、ページキャッシュの最適化が可能となり、性能向上が期待できる。例えば、MADV\_SEQUENTIAL や MADV\_WILLNEED の設定を行うことで、メモリのアクセスパターンに基づいたキャッシュ管理が行われ、ページフォールトの頻度を減らすことができる。これにより、mmap\_copy や mmap\_write の性能をさらに向上させることが可能となる。
+
+
+\end{document}
